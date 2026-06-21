@@ -331,6 +331,96 @@
     .grid { grid-template-columns: repeat(2, 1fr); }
     .card.span3, .card.span4 { grid-column: span 2; }
   }
+
+  /* ── SOMFY ── */
+  .section-divider {
+    grid-column: span 4;
+    display: flex; align-items: center; gap: 12px;
+    margin-top: 6px;
+  }
+  .section-divider span {
+    font-size: 10px; font-weight: 500; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--muted); white-space: nowrap;
+  }
+  .section-divider::before, .section-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .shutter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px; margin-top: 14px;
+  }
+  .shutter-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 13px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .shutter-item .sh-name {
+    font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.7px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .shutter-item .sh-pct {
+    font-family: 'DM Mono', monospace;
+    font-size: 24px; font-weight: 300; color: var(--text);
+  }
+  .shutter-bar-wrap {
+    background: var(--border); border-radius: 4px; height: 6px; overflow: hidden;
+  }
+  .shutter-bar-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--purple), var(--gas));
+    transition: width 0.8s ease;
+  }
+  .shutter-btns { display: flex; gap: 5px; }
+  .sh-btn {
+    flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    border-radius: 7px; padding: 5px 0; font-size: 14px;
+    cursor: pointer; text-align: center; transition: background 0.15s; line-height: 1;
+  }
+  .sh-btn:hover  { background: rgba(255,255,255,0.12); }
+  .sh-btn:active { background: rgba(255,255,255,0.22); }
+  .scene-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+  .scene-btn {
+    background: rgba(176,109,255,0.08); border: 1px solid rgba(176,109,255,0.3);
+    border-radius: 10px; padding: 8px 16px;
+    font-size: 12px; color: var(--purple); cursor: pointer;
+    transition: background 0.15s; white-space: nowrap;
+  }
+  .scene-btn:hover  { background: rgba(176,109,255,0.18); }
+  .scene-btn:active { background: rgba(176,109,255,0.3); }
+  .somfy-setup {
+    margin-top: 12px; background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+  }
+  .somfy-setup label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; display:block; margin-bottom:5px; }
+  .somfy-input-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .somfy-input {
+    flex: 1; min-width: 120px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 11px; font-size: 12px;
+    font-family: 'DM Mono', monospace; color: var(--text); outline: none;
+  }
+  .somfy-input:focus { border-color: var(--purple); }
+  .btn-somfy-connect {
+    background: var(--purple); color: #fff; border: none;
+    border-radius: 8px; padding: 8px 14px; font-size: 12px;
+    font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s;
+  }
+  .btn-somfy-connect:hover { opacity: 0.8; }
+  .somfy-status { font-size: 11px; color: var(--muted); margin-top: 7px; min-height: 16px; }
+  .somfy-status.ok  { color: var(--green); }
+  .somfy-status.err { color: var(--red); }
+  .global-btns { display: flex; gap: 8px; margin-top: 14px; }
+  .g-btn {
+    flex: 1; padding: 10px 8px; border-radius: 10px; border: 1px solid var(--border);
+    background: rgba(255,255,255,0.04); font-size: 12px; font-weight: 500;
+    color: var(--text); cursor: pointer; text-align: center; transition: background 0.15s;
+  }
+  .g-btn:hover { background: rgba(255,255,255,0.1); }
+  .g-btn.danger { border-color: rgba(255,107,74,0.4); color: var(--heat); }
+  .g-btn.danger:hover { background: rgba(255,107,74,0.1); }
+
 </style>
 </head>
 <body>
@@ -607,6 +697,48 @@
         <div style="font-family:'DM Mono',monospace;font-size:28px;color:var(--muted)" id="co2-month">–</div>
         <div style="font-size:11px;color:var(--muted);margin-top:4px">Schätzwert</div>
       </div>
+    </div>
+  </div>
+
+
+  <!-- ── SOMFY DIVIDER ── -->
+  <div class="section-divider"><span>☀️ Somfy TaHoma · Rolläden</span></div>
+
+  <!-- 12: Rolläden Setup + Global (span 2) -->
+  <div class="card c-purple span2">
+    <div class="card-label">TaHoma Verbindung</div>
+    <div class="somfy-setup">
+      <label>TaHoma IP-Adresse &amp; Token</label>
+      <div class="somfy-input-row">
+        <input class="somfy-input" id="tahoma-ip" placeholder="192.168.178.23" type="text" autocomplete="off" value="192.168.178.23">
+        <input class="somfy-input" id="tahoma-pin" placeholder="Token aus Entwicklermodus" type="password" autocomplete="off" value="6a3784504f8e9183c8f3">
+        <button class="btn-somfy-connect" onclick="connectTahoma()">Verbinden</button>
+      </div>
+      <div class="somfy-status" id="tahoma-status"></div>
+    </div>
+    <div class="global-btns">
+      <button class="g-btn" onclick="allShutters('open')">⬆️ Alle öffnen</button>
+      <button class="g-btn" onclick="allShutters('stop')">⏹ Stop</button>
+      <button class="g-btn danger" onclick="allShutters('close')">⬇️ Alle schließen</button>
+    </div>
+  </div>
+
+  <!-- 13: Szenen (span 2) -->
+  <div class="card c-purple span2">
+    <div class="card-label">Szenen</div>
+    <div class="scene-grid" id="scene-grid">
+      <div style="font-size:12px;color:var(--muted);padding-top:8px">TaHoma verbinden um Szenen zu laden…</div>
+    </div>
+  </div>
+
+  <!-- 14: Rolläden (span 4) -->
+  <div class="card c-neutral span4">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="card-label">Rollläden · Positionen</div>
+      <button class="btn-icon" onclick="refreshShutters()" style="font-size:11px">↻ Aktualisieren</button>
+    </div>
+    <div class="shutter-grid" id="shutter-grid">
+      <div style="font-size:12px;color:var(--muted);padding-top:8px">TaHoma verbinden um Rollläden zu laden…</div>
     </div>
   </div>
 
@@ -1003,7 +1135,7 @@ async function init() {
   if (p.get('code')) {
     const ok = await handleCallback();
     if (ok) {
-      show(); startClock();
+      show(); startClock(); setTimeout(restoreTahoma, 500);
       try { await loadInstall(); await update(); refreshTimer = setInterval(update, 60000); }
       catch(e) { showErr('Ladefehler: ' + e.message); }
     }
@@ -1012,13 +1144,248 @@ async function init() {
   const tok = sessionStorage.getItem('tok');
   if (tok) {
     accessToken = tok;
-    show(); startClock();
+    show(); startClock(); setTimeout(restoreTahoma, 500);
     try { await loadInstall(); await update(); refreshTimer = setInterval(update, 60000); }
     catch(e) {
       sessionStorage.clear();
       document.getElementById('login-screen').style.display = 'flex';
       document.getElementById('dashboard').style.display = 'none';
     }
+  }
+}
+
+// ── SOMFY TAHOMA ──────────────────────────────────────────────────────────────
+const TAHOMA_IP    = '192.168.178.23';
+const TAHOMA_TOKEN = '6a3784504f8e9183c8f3';
+let tahomaToken = null;
+let tahomaDevices = [];  // {deviceURL, label, position}
+let tahomaScenes  = [];
+
+async function connectTahoma() {
+  const ip    = document.getElementById('tahoma-ip').value.trim();
+  const token = document.getElementById('tahoma-pin').value.trim();
+  if (!ip || !token) { tahomaStatus('IP und Token eingeben', 'err'); return; }
+
+  sessionStorage.setItem('tahoma_ip',    ip);
+  sessionStorage.setItem('tahoma_pin',   token);
+  sessionStorage.setItem('tahoma_token', token);
+  tahomaToken = token;
+
+  tahomaStatus('Verbinde…');
+  try {
+    // Test connection with token
+    const resp = await fetch(`https://${ip}:8443/enduser-mobile-web/1/enduserAPI/apiVersion`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!resp.ok) throw new Error('Token ungültig (' + resp.status + ')');
+
+    tahomaStatus('✓ Verbunden', 'ok');
+    await loadTahomaDevices(ip);
+    await loadTahomaScenes(ip);
+  } catch(e) {
+    if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+      tahomaStatus('⚠️ Zertifikat nicht akzeptiert — bitte einmalig https://' + ip + ':8443 in Safari öffnen und Zertifikat bestätigen.', 'err');
+    } else {
+      tahomaStatus('Fehler: ' + e.message, 'err');
+    }
+    console.error('TaHoma:', e);
+  }
+}
+
+async function tahomaGet(path) {
+  const ip = sessionStorage.getItem('tahoma_ip');
+  const r = await fetch(`https://${ip}:8443/enduser-mobile-web/1/enduserAPI${path}`, {
+    headers: { 'Authorization': 'Bearer ' + tahomaToken }
+  });
+  if (!r.ok) throw new Error('TaHoma API ' + r.status);
+  return r.json();
+}
+
+async function tahomaPost(path, body) {
+  const ip = sessionStorage.getItem('tahoma_ip');
+  const r = await fetch(`https://${ip}:8443/enduser-mobile-web/1/enduserAPI${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + tahomaToken
+    },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('TaHoma POST ' + r.status);
+  return r.json();
+}
+
+async function loadTahomaDevices(ip) {
+  try {
+    const devices = await tahomaGet('/setup/devices');
+    // Filter rolladen/shutter devices
+    tahomaDevices = devices.filter(d =>
+      d.controllableName?.toLowerCase().includes('roller') ||
+      d.controllableName?.toLowerCase().includes('shutter') ||
+      d.controllableName?.toLowerCase().includes('screen') ||
+      d.controllableName?.toLowerCase().includes('blind') ||
+      d.uiClass === 'RollerShutter' ||
+      d.uiClass === 'ExteriorScreen' ||
+      d.uiClass === 'Awning' ||
+      (d.states || []).some(s => s.name === 'core:ClosureState' || s.name === 'core:OpenClosedState')
+    ).map(d => {
+      const closureState = (d.states || []).find(s => s.name === 'core:ClosureState');
+      const pct = closureState ? (100 - closureState.value) : null; // TaHoma: 0=open,100=closed → invert
+      return { url: d.deviceURL, label: d.label, position: pct };
+    });
+
+    renderShutters();
+    tahomaStatus('✓ ' + tahomaDevices.length + ' Rolläden gefunden', 'ok');
+  } catch(e) {
+    tahomaStatus('Geräte-Fehler: ' + e.message, 'err');
+  }
+}
+
+async function loadTahomaScenes(ip) {
+  try {
+    const scenes = await tahomaGet('/actionGroups');
+    tahomaScenes = scenes;
+    renderScenes();
+  } catch(e) { console.warn('Szenen:', e); }
+}
+
+function renderShutters() {
+  const grid = document.getElementById('shutter-grid');
+  if (!tahomaDevices.length) {
+    grid.innerHTML = '<div style="font-size:12px;color:var(--muted)">Keine Rollläden gefunden.</div>';
+    return;
+  }
+  grid.innerHTML = tahomaDevices.map((d, i) => {
+    const pct = d.position !== null ? d.position : 50;
+    return `
+      <div class="shutter-item">
+        <div class="sh-name" title="${d.label}">${d.label}</div>
+        <div class="sh-pct" id="sh-pct-${i}">${d.position !== null ? pct+'%' : '–'}</div>
+        <div class="shutter-bar-wrap">
+          <div class="shutter-bar-fill" id="sh-bar-${i}" style="width:${pct}%"></div>
+        </div>
+        <div class="shutter-btns">
+          <button class="sh-btn" onclick="cmdShutter(${i},'open')"  title="Öffnen">⬆️</button>
+          <button class="sh-btn" onclick="cmdShutter(${i},'stop')"  title="Stop">⏹</button>
+          <button class="sh-btn" onclick="cmdShutter(${i},'close')" title="Schließen">⬇️</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderScenes() {
+  const grid = document.getElementById('scene-grid');
+  if (!tahomaScenes.length) {
+    grid.innerHTML = '<div style="font-size:12px;color:var(--muted)">Keine Szenen gefunden.</div>';
+    return;
+  }
+  grid.innerHTML = tahomaScenes.map((s,i) =>
+    `<button class="scene-btn" onclick="runScene('${s.oid}')">${s.label}</button>`
+  ).join('');
+}
+
+async function cmdShutter(idx, action) {
+  const d = tahomaDevices[idx];
+  if (!d) return;
+  const cmdMap = { open:'open', close:'close', stop:'stop' };
+  const cmd = cmdMap[action] || action;
+  try {
+    await tahomaPost('/exec/apply', {
+      label: cmd + ' ' + d.label,
+      actions: [{
+        deviceURL: d.url,
+        commands: [{ name: cmd, parameters: [] }]
+      }]
+    });
+    // Optimistic UI update
+    if (action === 'open')  updateShutterUI(idx, 100);
+    if (action === 'close') updateShutterUI(idx, 0);
+  } catch(e) {
+    console.error('Shutter cmd:', e);
+  }
+}
+
+async function allShutters(action) {
+  if (!tahomaDevices.length) { tahomaStatus('Keine Rollläden verbunden', 'err'); return; }
+  const cmdMap = { open:'open', close:'close', stop:'stop' };
+  const cmd = cmdMap[action];
+  try {
+    await tahomaPost('/exec/apply', {
+      label: cmd + ' alle Rolläden',
+      actions: tahomaDevices.map(d => ({
+        deviceURL: d.url,
+        commands: [{ name: cmd, parameters: [] }]
+      }))
+    });
+    if (action === 'open')  tahomaDevices.forEach((_,i) => updateShutterUI(i, 100));
+    if (action === 'close') tahomaDevices.forEach((_,i) => updateShutterUI(i, 0));
+    tahomaStatus('✓ Befehl gesendet: ' + cmd, 'ok');
+    setTimeout(() => tahomaStatus('', ''), 3000);
+  } catch(e) {
+    tahomaStatus('Fehler: ' + e.message, 'err');
+  }
+}
+
+async function runScene(oid) {
+  try {
+    await tahomaPost('/exec/apply', { label:'Szene', actionGroups:[{ oid }] });
+    tahomaStatus('✓ Szene gestartet', 'ok');
+    setTimeout(() => tahomaStatus('', ''), 3000);
+  } catch(e) {
+    tahomaStatus('Szene Fehler: ' + e.message, 'err');
+  }
+}
+
+async function refreshShutters() {
+  if (!sessionStorage.getItem('tahoma_ip')) return;
+  try {
+    const devices = await tahomaGet('/setup/devices');
+    devices.forEach(d => {
+      const idx = tahomaDevices.findIndex(t => t.url === d.deviceURL);
+      if (idx < 0) return;
+      const s = (d.states || []).find(s => s.name === 'core:ClosureState');
+      if (s !== undefined) {
+        const pct = 100 - s.value;
+        tahomaDevices[idx].position = pct;
+        updateShutterUI(idx, pct);
+      }
+    });
+  } catch(e) { console.warn('Refresh:', e); }
+}
+
+function updateShutterUI(idx, pct) {
+  const bar = document.getElementById('sh-bar-' + idx);
+  const lbl = document.getElementById('sh-pct-' + idx);
+  if (bar) bar.style.width = pct + '%';
+  if (lbl) lbl.textContent = pct + '%';
+  if (tahomaDevices[idx]) tahomaDevices[idx].position = pct;
+}
+
+function tahomaStatus(msg, cls) {
+  const el = document.getElementById('tahoma-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'somfy-status' + (cls ? ' ' + cls : '');
+}
+
+// Restore TaHoma session on reload
+async function restoreTahoma() {
+  const ip  = sessionStorage.getItem('tahoma_ip');
+  const tok = sessionStorage.getItem('tahoma_token');
+  const pin = sessionStorage.getItem('tahoma_pin');
+  if (!ip) { ip = TAHOMA_IP; sessionStorage.setItem('tahoma_ip', ip); }
+  if (!tok) { tok = TAHOMA_TOKEN; sessionStorage.setItem('tahoma_token', tok); sessionStorage.setItem('tahoma_pin', tok); }
+  if (ip) {
+    document.getElementById('tahoma-ip').value = ip;
+    if (pin) document.getElementById('tahoma-pin').value = pin;
+  }
+  if (ip && tok) {
+    tahomaToken = tok;
+    tahomaStatus('Lade Rollläden…');
+    try {
+      await loadTahomaDevices(ip);
+      await loadTahomaScenes(ip);
+    } catch(e) { tahomaStatus('Sitzung abgelaufen — bitte neu verbinden', 'err'); }
   }
 }
 
