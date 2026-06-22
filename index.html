@@ -878,16 +878,47 @@ async function loadInstall() {
     }
   }
 
-  if (!found) throw new Error('Kein Gerät antwortet. Geräte-IDs: ' + devices.map(d=>d.id).join(', '));
+  // Try gateway-level features (Vitoconnect style)
+  if (!found) {
+    for (const id of ['gateway', '0', 'RoomControl-1', 'HeatDemandControl']) {
+      try {
+        const testPath = `/equipment/installations/${i.id}/gateways/${i.gateways[0].serial}/devices/${id}/features`;
+        const r = await fetch(API_BASE + testPath, { headers:{ Authorization:'Bearer '+accessToken } });
+        if (r.ok) {
+          const data = await r.json();
+          // Check if this device has heating features
+          const hasHeating = (data.data || []).some(f => f.feature && f.feature.startsWith('heating'));
+          if (hasHeating) { deviceId = id; found = true; break; }
+        }
+      } catch(e) { /* try next */ }
+    }
+  }
+
+  // Last resort: use whichever device returns any features
+  if (!found) {
+    for (const dev of [...devices, {id:'gateway'}, {id:'0'}]) {
+      try {
+        const testPath = `/equipment/installations/${i.id}/gateways/${i.gateways[0].serial}/devices/${dev.id}/features`;
+        const r = await fetch(API_BASE + testPath, { headers:{ Authorization:'Bearer '+accessToken } });
+        if (r.ok) { deviceId = dev.id; found = true; break; }
+      } catch(e) { /* try next */ }
+    }
+  }
+
+  if (!found) throw new Error('Kein Gerät mit Heizungsdaten gefunden. Geräte: ' + devices.map(d=>d.id).join(', '));
 
   setText('install-name', i.description || '');
-  apiStatus('Gerät gefunden: ' + deviceId, false);
-  setTimeout(() => apiStatus('', false), 3000);
+  apiStatus('Gerät: ' + deviceId, false);
+  setTimeout(() => apiStatus('', false), 4000);
 }
 
 async function getFeatures() {
   const d = await apiGet(`/equipment/installations/${installId}/gateways/${gwSerial}/devices/${deviceId}/features`);
-  return d.data;
+  const features = d.data || [];
+  // Show available heating features in console for debugging
+  const heatFeatures = features.filter(f => f.feature?.startsWith('heating')).map(f => f.feature);
+  console.log('Heating features (' + heatFeatures.length + '):', heatFeatures.join(', '));
+  return features;
 }
 
 function feat(fs, name) { return fs.find(f => f.feature === name); }
