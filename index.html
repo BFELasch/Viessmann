@@ -471,6 +471,7 @@
     <button class="btn-icon" onclick="logout()">Abmelden</button>
   </div>
 </header>
+<div id="api-status-bar" style="display:none;margin-bottom:14px;background:rgba(255,74,107,0.1);border:1px solid rgba(255,74,107,0.3);border-radius:10px;padding:10px 16px;font-size:12px;color:#ff4a6b;line-height:1.6"></div>
 
 <div class="grid">
 
@@ -826,16 +827,31 @@ async function handleCallback() {
 
 // ── API ───────────────────────────────────────────────────────────────────────
 async function apiGet(path) {
-  const r = await fetch(API_BASE + path, { headers:{ Authorization:'Bearer '+accessToken } });
-  if (!r.ok) throw new Error('API ' + r.status + ': ' + path);
+  let r;
+  try {
+    r = await fetch(API_BASE + path, { headers:{ Authorization:'Bearer '+accessToken } });
+  } catch(e) {
+    throw new Error('Netzwerkfehler — Internetverbindung prüfen. (' + e.message + ')');
+  }
+  if (r.status === 401) throw new Error('Token abgelaufen — bitte neu anmelden.');
+  if (r.status === 403) throw new Error('Zugriff verweigert (403) — Client ID hat keine Berechtigung.');
+  if (r.status === 404) throw new Error('Gerät nicht gefunden (404): ' + path);
+  if (!r.ok) throw new Error('API Fehler ' + r.status + ': ' + path);
   return r.json();
 }
 
 async function loadInstall() {
+  apiStatus('Lade Installationen…', false);
   const d = await apiGet('/equipment/installations?includeGateways=true');
+  if (!d.data || d.data.length === 0) throw new Error('Keine Installation gefunden. Prüfen Sie ob Ihre Anlage in der ViCare App sichtbar ist.');
   const i = d.data[0];
-  installId = i.id; gwSerial = i.gateways[0].serial; deviceId = i.gateways[0].devices[0].id;
+  if (!i.gateways || i.gateways.length === 0) throw new Error('Kein Gateway gefunden für Installation ' + i.id);
+  if (!i.gateways[0].devices || i.gateways[0].devices.length === 0) throw new Error('Kein Gerät gefunden für Gateway ' + i.gateways[0].serial);
+  installId = i.id;
+  gwSerial  = i.gateways[0].serial;
+  deviceId  = i.gateways[0].devices[0].id;
   setText('install-name', i.description || '');
+  apiStatus('', false);
 }
 
 async function getFeatures() {
@@ -1021,6 +1037,7 @@ async function update() {
 
   } catch(e) {
     console.error('Update:', e);
+    apiStatus('⚠️ ' + e.message, true);
   }
 }
 
@@ -1129,6 +1146,17 @@ async function forceRefresh() {
   if (!demoMode) await update();
 }
 
+function apiStatus(msg, isError) {
+  const bar = document.getElementById('api-status-bar');
+  if (!bar) return;
+  if (!msg) { bar.style.display = 'none'; return; }
+  bar.textContent = msg;
+  bar.style.display = 'block';
+  bar.style.color = isError ? '#ff4a6b' : 'var(--muted)';
+  bar.style.borderColor = isError ? 'rgba(255,74,107,0.3)' : 'var(--border)';
+  bar.style.background  = isError ? 'rgba(255,74,107,0.1)' : 'rgba(255,255,255,0.03)';
+}
+
 // ── INIT ─────────────────────────────────────────────────────────────────────
 async function init() {
   const p = new URLSearchParams(window.location.search);
@@ -1137,7 +1165,7 @@ async function init() {
     if (ok) {
       show(); startClock(); setTimeout(restoreTahoma, 500);
       try { await loadInstall(); await update(); refreshTimer = setInterval(update, 60000); }
-      catch(e) { showErr('Ladefehler: ' + e.message); }
+      catch(e) { showErr('Ladefehler: ' + e.message); apiStatus('⚠️ ' + e.message, true); }
     }
     return;
   }
@@ -1147,9 +1175,15 @@ async function init() {
     show(); startClock(); setTimeout(restoreTahoma, 500);
     try { await loadInstall(); await update(); refreshTimer = setInterval(update, 60000); }
     catch(e) {
-      sessionStorage.clear();
-      document.getElementById('login-screen').style.display = 'flex';
-      document.getElementById('dashboard').style.display = 'none';
+      if (e.message.includes('abgelaufen') || e.message.includes('401')) {
+        sessionStorage.clear();
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('error-msg').textContent = 'Sitzung abgelaufen — bitte neu anmelden.';
+        document.getElementById('error-msg').style.display = 'block';
+      } else {
+        apiStatus('⚠️ ' + e.message, true);
+      }
     }
   }
 }
