@@ -468,10 +468,19 @@
       <span id="data-src">Live</span>
     </div>
     <button class="btn-icon" onclick="forceRefresh()">↻ Neu</button>
+    <button class="btn-icon" onclick="document.getElementById('diag-panel').style.display='block';diagRun()">🔍 Diagnose</button>
     <button class="btn-icon" onclick="logout()">Abmelden</button>
   </div>
 </header>
 <div id="api-status-bar" style="display:none;margin-bottom:14px;background:rgba(255,74,107,0.1);border:1px solid rgba(255,74,107,0.3);border-radius:10px;padding:10px 16px;font-size:12px;color:#ff4a6b;line-height:1.6"></div>
+<div id="diag-panel" style="display:none;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;">
+  <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">API Diagnose</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+    <button class="btn-icon" onclick="diagRun()">▶ Diagnose starten</button>
+    <button class="btn-icon" onclick="document.getElementById('diag-panel').style.display='none'">✕ Schließen</button>
+  </div>
+  <pre id="diag-out" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text);white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;line-height:1.6"></pre>
+</div>
 
 <div class="grid">
 
@@ -752,6 +761,7 @@ const REDIRECT_URI = 'https://bfelasch.github.io/Viessmann/';
 const AUTH_URL  = 'https://iam.viessmann-climatesolutions.com/idp/v3/authorize';
 const TOKEN_URL = 'https://iam.viessmann-climatesolutions.com/idp/v3/token';
 const API_BASE  = 'https://api.viessmann-climatesolutions.com/iot/v2';
+const FEAT_BASE = 'https://api.viessmann-climatesolutions.com/iot/v2/features';
 const SCOPE     = 'IoT User offline_access';
 const GAS_PRICE = 0.95; // €/m³ — anpassen!
 const CO2_PER_M3 = 2.0; // kg CO₂ pro m³ Gas
@@ -847,84 +857,28 @@ async function loadInstall() {
   const i = d.data[0];
   installId = i.id;
   gwSerial  = i.gateways?.[0]?.serial;
+  deviceId  = i.gateways?.[0]?.devices?.[0]?.id || 'gateway';
   setText('install-name', i.description || '');
-
-  // Try all known ViCare API URL patterns until one returns heating features
-  const deviceIds = ['gateway', '0', 'RoomControl-1', 'HeatDemandControl'];
-  const urlPatterns = [
-    // Pattern 1: /iot/v2/equipment/installations/{id}/gateways/{gw}/devices/{dev}/features
-    (dev) => `/equipment/installations/${installId}/gateways/${gwSerial}/devices/${dev}/features`,
-    // Pattern 2: /iot/v1/equipment/installations/{id}/gateways/{gw}/devices/{dev}/features
-    (dev) => `/equipment/installations/${installId}/gateways/${gwSerial}/devices/${dev}/features`.replace('v2','v1'),
-  ];
-
-  // Also try without gateway level (direct installation features)
-  const directPatterns = [
-    `/equipment/installations/${installId}/features`,
-    `/equipment/installations/${installId}/gateways/${gwSerial}/features`,
-  ];
-
-  // Try direct patterns first
-  for (const path of directPatterns) {
-    try {
-      const url = 'https://api.viessmann-climatesolutions.com/iot/v2' + path.replace('/equipment','');
-      const r = await fetch('https://api.viessmann-climatesolutions.com/iot/v2' + path, {
-        headers:{ Authorization:'Bearer '+accessToken }
-      });
-      if (r.ok) {
-        const data = await r.json();
-        const hasHeating = (data.data||[]).some(f=>f.feature?.startsWith('heating'));
-        if (hasHeating) {
-          // Store special flag to use direct path
-          deviceId = '__direct__';
-          window._featuresPath = path;
-          apiStatus('API-Pfad gefunden (direkt)', false);
-          setTimeout(()=>apiStatus('',false),3000);
-          return;
-        }
-      }
-    } catch(e) {}
-  }
-
-  // Try device patterns
-  for (const dev of deviceIds) {
-    const path = `/equipment/installations/${installId}/gateways/${gwSerial}/devices/${dev}/features`;
-    try {
-      const r = await fetch(API_BASE + path, { headers:{ Authorization:'Bearer '+accessToken }});
-      if (r.ok) {
-        const data = await r.json();
-        const feats = data.data || [];
-        const hasHeating = feats.some(f=>f.feature?.startsWith('heating'));
-        console.log('Device', dev, '— features:', feats.length, 'heating:', hasHeating,
-          feats.slice(0,5).map(f=>f.feature).join(', '));
-        if (hasHeating || feats.length > 5) {
-          deviceId = dev;
-          apiStatus('Gerät: ' + dev + ' (' + feats.length + ' Features)', false);
-          setTimeout(()=>apiStatus('',false),3000);
-          return;
-        }
-      }
-    } catch(e) {}
-  }
-
-  // Last resort: use gateway device and show what we get
-  deviceId = 'gateway';
-  apiStatus('⚠️ Fallback auf gateway — bitte Konsole prüfen (F12)', true);
+  apiStatus('', false);
 }
 
 async function getFeatures() {
-  let path;
-  if (deviceId === '__direct__') {
-    path = window._featuresPath;
-  } else {
-    path = `/equipment/installations/${installId}/gateways/${gwSerial}/devices/${deviceId}/features`;
+  // New ViCare API endpoint (replaces deprecated /devices/{id}/features)
+  const url = `${FEAT_BASE}?installationId=${installId}&gatewaySerial=${gwSerial}&deviceId=${deviceId}&combined=false`;
+  const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
+  if (!r.ok) {
+    const err = await r.json().catch(()=>({}));
+    throw new Error('Features ' + r.status + ': ' + (err.message || r.statusText));
   }
-  const d = await apiGet(path);
-  const features = d.data || [];
-  const heatFeatures = features.filter(f => f.feature?.startsWith('heating')).map(f => f.feature);
-  console.log('Features (' + features.length + '), Heating (' + heatFeatures.length + '):', heatFeatures.slice(0,10).join(', '));
+  const d = await r.json();
+  const features = d.data || d.features || [];
+  const heating = features.filter(f=>f.feature?.startsWith('heating'));
+  console.log('Features:', features.length, 'Heating:', heating.length, heating.slice(0,5).map(f=>f.feature).join(', '));
+  if (heating.length === 0) apiStatus('⚠️ Keine Heizungs-Features (' + features.length + ' total)', true);
+  else apiStatus('', false);
   return features;
 }
+
 
 function feat(fs, name) { return fs.find(f => f.feature === name); }
 function prop(f, key, sub='value') {
@@ -1225,6 +1179,56 @@ function apiStatus(msg, isError) {
 }
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
+async function diagRun() {
+  const out = document.getElementById('diag-out');
+  const log = (msg) => { out.textContent += msg + '\n'; };
+  out.textContent = '';
+
+  log('Token: ' + (accessToken ? accessToken.substring(0,20)+'…' : 'KEIN TOKEN'));
+  log('Installation: ' + installId);
+  log('Gateway: ' + gwSerial);
+  log('');
+
+  const bases = [
+    'https://api.viessmann-climatesolutions.com/iot/v2',
+    'https://api.viessmann-climatesolutions.com/iot/v1',
+  ];
+
+  const devIds = ['gateway', '0', 'RoomControl-1', 'HeatDemandControl', 'vitoconnect', 'boiler', '1'];
+
+  for (const base of bases) {
+    log('── ' + base.split('/iot/')[1] + ' ──');
+
+    // Test installation endpoint
+    try {
+      const r = await fetch(base + '/equipment/installations/' + installId, {
+        headers:{ Authorization:'Bearer '+accessToken }
+      });
+      log('GET /installations/' + installId + ' → ' + r.status);
+    } catch(e) { log('GET /installations → ERROR: ' + e.message); }
+
+    // Test each device
+    for (const dev of devIds) {
+      try {
+        const url = FEAT_BASE + '?installationId=' + installId + '&gatewaySerial=' + gwSerial + '&deviceId=' + dev + '&combined=false';
+        const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
+        if (r.ok) {
+          const data = await r.json();
+          const feats = data.data || [];
+          const heating = feats.filter(f=>f.feature?.startsWith('heating')).length;
+          log('✓ /devices/' + dev + '/features → ' + feats.length + ' features, ' + heating + ' heating');
+          if (feats.length > 0) log('  Erste: ' + feats.slice(0,3).map(f=>f.feature).join(', '));
+        } else {
+          log('✗ /devices/' + dev + '/features → ' + r.status);
+        }
+      } catch(e) { log('✗ /devices/' + dev + ' → ' + e.message); }
+    }
+    log('');
+  }
+  log('Fertig.');
+}
+
+
 async function init() {
   const p = new URLSearchParams(window.location.search);
   if (p.get('code')) {
