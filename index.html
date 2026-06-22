@@ -841,83 +841,88 @@ async function apiGet(path) {
 }
 
 async function loadInstall() {
-  apiStatus('Lade Installationen…', false);
+  apiStatus('Verbinde mit ViCare API…', false);
   const d = await apiGet('/equipment/installations?includeGateways=true');
   if (!d.data || d.data.length === 0) throw new Error('Keine Installation gefunden.');
   const i = d.data[0];
-  if (!i.gateways || i.gateways.length === 0) throw new Error('Kein Gateway gefunden.');
   installId = i.id;
-  gwSerial  = i.gateways[0].serial;
-
-  // Try to find working device by testing each one
-  const devices = i.gateways[0].devices || [];
-  apiStatus('Gefundene Geräte: ' + devices.map(d => d.id).join(', '), false);
-
-  // Try each device until features load successfully
-  let found = false;
-  for (const dev of devices) {
-    try {
-      const testPath = `/equipment/installations/${i.id}/gateways/${i.gateways[0].serial}/devices/${dev.id}/features`;
-      const r = await fetch(API_BASE + testPath, { headers:{ Authorization:'Bearer '+accessToken } });
-      if (r.ok) {
-        deviceId = dev.id;
-        found = true;
-        break;
-      }
-    } catch(e) { /* try next */ }
-  }
-
-  // If no device worked via devices list, try known IDs
-  if (!found) {
-    for (const id of ['vitoconnect', 'heating', '1', 'boiler']) {
-      try {
-        const testPath = `/equipment/installations/${i.id}/gateways/${i.gateways[0].serial}/devices/${id}/features`;
-        const r = await fetch(API_BASE + testPath, { headers:{ Authorization:'Bearer '+accessToken } });
-        if (r.ok) { deviceId = id; found = true; break; }
-      } catch(e) { /* try next */ }
-    }
-  }
-
-  // Try gateway-level features (Vitoconnect style)
-  if (!found) {
-    for (const id of ['gateway', '0', 'RoomControl-1', 'HeatDemandControl']) {
-      try {
-        const testPath = `/equipment/installations/${i.id}/gateways/${i.gateways[0].serial}/devices/${id}/features`;
-        const r = await fetch(API_BASE + testPath, { headers:{ Authorization:'Bearer '+accessToken } });
-        if (r.ok) {
-          const data = await r.json();
-          // Check if this device has heating features
-          const hasHeating = (data.data || []).some(f => f.feature && f.feature.startsWith('heating'));
-          if (hasHeating) { deviceId = id; found = true; break; }
-        }
-      } catch(e) { /* try next */ }
-    }
-  }
-
-  // Last resort: use whichever device returns any features
-  if (!found) {
-    for (const dev of [...devices, {id:'gateway'}, {id:'0'}]) {
-      try {
-        const testPath = `/equipment/installations/${i.id}/gateways/${i.gateways[0].serial}/devices/${dev.id}/features`;
-        const r = await fetch(API_BASE + testPath, { headers:{ Authorization:'Bearer '+accessToken } });
-        if (r.ok) { deviceId = dev.id; found = true; break; }
-      } catch(e) { /* try next */ }
-    }
-  }
-
-  if (!found) throw new Error('Kein Gerät mit Heizungsdaten gefunden. Geräte: ' + devices.map(d=>d.id).join(', '));
-
+  gwSerial  = i.gateways?.[0]?.serial;
   setText('install-name', i.description || '');
-  apiStatus('Gerät: ' + deviceId, false);
-  setTimeout(() => apiStatus('', false), 4000);
+
+  // Try all known ViCare API URL patterns until one returns heating features
+  const deviceIds = ['gateway', '0', 'RoomControl-1', 'HeatDemandControl'];
+  const urlPatterns = [
+    // Pattern 1: /iot/v2/equipment/installations/{id}/gateways/{gw}/devices/{dev}/features
+    (dev) => `/equipment/installations/${installId}/gateways/${gwSerial}/devices/${dev}/features`,
+    // Pattern 2: /iot/v1/equipment/installations/{id}/gateways/{gw}/devices/{dev}/features
+    (dev) => `/equipment/installations/${installId}/gateways/${gwSerial}/devices/${dev}/features`.replace('v2','v1'),
+  ];
+
+  // Also try without gateway level (direct installation features)
+  const directPatterns = [
+    `/equipment/installations/${installId}/features`,
+    `/equipment/installations/${installId}/gateways/${gwSerial}/features`,
+  ];
+
+  // Try direct patterns first
+  for (const path of directPatterns) {
+    try {
+      const url = 'https://api.viessmann-climatesolutions.com/iot/v2' + path.replace('/equipment','');
+      const r = await fetch('https://api.viessmann-climatesolutions.com/iot/v2' + path, {
+        headers:{ Authorization:'Bearer '+accessToken }
+      });
+      if (r.ok) {
+        const data = await r.json();
+        const hasHeating = (data.data||[]).some(f=>f.feature?.startsWith('heating'));
+        if (hasHeating) {
+          // Store special flag to use direct path
+          deviceId = '__direct__';
+          window._featuresPath = path;
+          apiStatus('API-Pfad gefunden (direkt)', false);
+          setTimeout(()=>apiStatus('',false),3000);
+          return;
+        }
+      }
+    } catch(e) {}
+  }
+
+  // Try device patterns
+  for (const dev of deviceIds) {
+    const path = `/equipment/installations/${installId}/gateways/${gwSerial}/devices/${dev}/features`;
+    try {
+      const r = await fetch(API_BASE + path, { headers:{ Authorization:'Bearer '+accessToken }});
+      if (r.ok) {
+        const data = await r.json();
+        const feats = data.data || [];
+        const hasHeating = feats.some(f=>f.feature?.startsWith('heating'));
+        console.log('Device', dev, '— features:', feats.length, 'heating:', hasHeating,
+          feats.slice(0,5).map(f=>f.feature).join(', '));
+        if (hasHeating || feats.length > 5) {
+          deviceId = dev;
+          apiStatus('Gerät: ' + dev + ' (' + feats.length + ' Features)', false);
+          setTimeout(()=>apiStatus('',false),3000);
+          return;
+        }
+      }
+    } catch(e) {}
+  }
+
+  // Last resort: use gateway device and show what we get
+  deviceId = 'gateway';
+  apiStatus('⚠️ Fallback auf gateway — bitte Konsole prüfen (F12)', true);
 }
 
 async function getFeatures() {
-  const d = await apiGet(`/equipment/installations/${installId}/gateways/${gwSerial}/devices/${deviceId}/features`);
+  let path;
+  if (deviceId === '__direct__') {
+    path = window._featuresPath;
+  } else {
+    path = `/equipment/installations/${installId}/gateways/${gwSerial}/devices/${deviceId}/features`;
+  }
+  const d = await apiGet(path);
   const features = d.data || [];
-  // Show available heating features in console for debugging
   const heatFeatures = features.filter(f => f.feature?.startsWith('heating')).map(f => f.feature);
-  console.log('Heating features (' + heatFeatures.length + '):', heatFeatures.join(', '));
+  console.log('Features (' + features.length + '), Heating (' + heatFeatures.length + '):', heatFeatures.slice(0,10).join(', '));
   return features;
 }
 
