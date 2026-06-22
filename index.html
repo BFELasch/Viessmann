@@ -843,21 +843,46 @@ async function apiGet(path) {
 async function loadInstall() {
   apiStatus('Lade Installationen…', false);
   const d = await apiGet('/equipment/installations?includeGateways=true');
-  if (!d.data || d.data.length === 0) throw new Error('Keine Installation gefunden. Prüfen Sie ob Ihre Anlage in der ViCare App sichtbar ist.');
+  if (!d.data || d.data.length === 0) throw new Error('Keine Installation gefunden.');
   const i = d.data[0];
-  if (!i.gateways || i.gateways.length === 0) throw new Error('Kein Gateway gefunden für Installation ' + i.id);
-  if (!i.gateways[0].devices || i.gateways[0].devices.length === 0) throw new Error('Kein Gerät gefunden für Gateway ' + i.gateways[0].serial);
+  if (!i.gateways || i.gateways.length === 0) throw new Error('Kein Gateway gefunden.');
   installId = i.id;
   gwSerial  = i.gateways[0].serial;
-  // Find the actual heating device — skip 'gateway' pseudo-device
+
+  // Try to find working device by testing each one
   const devices = i.gateways[0].devices || [];
-  const boiler  = devices.find(d => d.id === '0')
-               || devices.find(d => d.id !== 'gateway' && d.deviceType !== 'gateway')
-               || devices.find(d => d.id !== 'gateway')
-               || devices[0];
-  deviceId = boiler?.id ?? '0';
+  apiStatus('Gefundene Geräte: ' + devices.map(d => d.id).join(', '), false);
+
+  // Try each device until features load successfully
+  let found = false;
+  for (const dev of devices) {
+    try {
+      const testPath = `/equipment/installations/${i.id}/gateways/${i.gateways[0].serial}/devices/${dev.id}/features`;
+      const r = await fetch(API_BASE + testPath, { headers:{ Authorization:'Bearer '+accessToken } });
+      if (r.ok) {
+        deviceId = dev.id;
+        found = true;
+        break;
+      }
+    } catch(e) { /* try next */ }
+  }
+
+  // If no device worked via devices list, try known IDs
+  if (!found) {
+    for (const id of ['vitoconnect', 'heating', '1', 'boiler']) {
+      try {
+        const testPath = `/equipment/installations/${i.id}/gateways/${i.gateways[0].serial}/devices/${id}/features`;
+        const r = await fetch(API_BASE + testPath, { headers:{ Authorization:'Bearer '+accessToken } });
+        if (r.ok) { deviceId = id; found = true; break; }
+      } catch(e) { /* try next */ }
+    }
+  }
+
+  if (!found) throw new Error('Kein Gerät antwortet. Geräte-IDs: ' + devices.map(d=>d.id).join(', '));
+
   setText('install-name', i.description || '');
-  apiStatus('', false);
+  apiStatus('Gerät gefunden: ' + deviceId, false);
+  setTimeout(() => apiStatus('', false), 3000);
 }
 
 async function getFeatures() {
