@@ -762,6 +762,7 @@ const AUTH_URL  = 'https://iam.viessmann-climatesolutions.com/idp/v3/authorize';
 const TOKEN_URL = 'https://iam.viessmann-climatesolutions.com/idp/v3/token';
 const API_BASE  = 'https://api.viessmann-climatesolutions.com/iot/v2';
 const FEAT_BASE = 'https://api.viessmann-climatesolutions.com/iot/v2/features';
+const FEAT_PATH = (inst, gw, dev) => `/features/installations/${inst}/gateways/${gw}/devices/${dev}/features`;
 const SCOPE     = 'IoT User offline_access';
 const GAS_PRICE = 0.95; // €/m³ — anpassen!
 const CO2_PER_M3 = 2.0; // kg CO₂ pro m³ Gas
@@ -1195,7 +1196,7 @@ async function diagRun() {
   log('── Neuer Endpunkt /iot/v2/features ──');
   for (const dev of devIds) {
     try {
-      const url = NEWBASE + '?installationId=' + installId + '&gatewaySerial=' + gwSerial + '&deviceId=' + dev;
+      const url = API_BASE + `/features/installations/${installId}/gateways/${gwSerial}/devices/${dev}/features`;
       const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
       const txt = await r.text();
       if (r.ok) {
@@ -1214,7 +1215,7 @@ async function diagRun() {
   // Also try without deviceId
   log('── Ohne deviceId ──');
   try {
-    const url = NEWBASE + '?installationId=' + installId + '&gatewaySerial=' + gwSerial;
+    const url = API_BASE + `/features/installations/${installId}/gateways/${gwSerial}/devices/0/features`;
     const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
     const txt = await r.text();
     if (r.ok) {
@@ -1232,7 +1233,7 @@ async function diagRun() {
   log('');
   log('── combined=true ──');
   try {
-    const url = NEWBASE + '?installationId=' + installId + '&gatewaySerial=' + gwSerial + '&combined=true';
+    const url = API_BASE + `/features/installations/${installId}/gateways/${gwSerial}/devices/vitoconnect/features`;
     const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
     const txt = await r.text();
     if (r.ok) {
