@@ -849,7 +849,13 @@ async function loadInstall() {
   if (!i.gateways[0].devices || i.gateways[0].devices.length === 0) throw new Error('Kein Gerät gefunden für Gateway ' + i.gateways[0].serial);
   installId = i.id;
   gwSerial  = i.gateways[0].serial;
-  deviceId  = i.gateways[0].devices[0].id;
+  // Find the actual heating device — skip 'gateway' pseudo-device
+  const devices = i.gateways[0].devices || [];
+  const boiler  = devices.find(d => d.id === '0')
+               || devices.find(d => d.id !== 'gateway' && d.deviceType !== 'gateway')
+               || devices.find(d => d.id !== 'gateway')
+               || devices[0];
+  deviceId = boiler?.id ?? '0';
   setText('install-name', i.description || '');
   apiStatus('', false);
 }
