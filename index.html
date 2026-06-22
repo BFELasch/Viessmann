@@ -1189,42 +1189,63 @@ async function diagRun() {
   log('Gateway: ' + gwSerial);
   log('');
 
-  const bases = [
-    'https://api.viessmann-climatesolutions.com/iot/v2',
-    'https://api.viessmann-climatesolutions.com/iot/v1',
-  ];
+  const NEWBASE = 'https://api.viessmann-climatesolutions.com/iot/v2/features';
+  const devIds = ['gateway', '0', 'RoomControl-1', 'HeatDemandControl'];
 
-  const devIds = ['gateway', '0', 'RoomControl-1', 'HeatDemandControl', 'vitoconnect', 'boiler', '1'];
-
-  for (const base of bases) {
-    log('── ' + base.split('/iot/')[1] + ' ──');
-
-    // Test installation endpoint
+  log('── Neuer Endpunkt /iot/v2/features ──');
+  for (const dev of devIds) {
     try {
-      const r = await fetch(base + '/equipment/installations/' + installId, {
-        headers:{ Authorization:'Bearer '+accessToken }
-      });
-      log('GET /installations/' + installId + ' → ' + r.status);
-    } catch(e) { log('GET /installations → ERROR: ' + e.message); }
-
-    // Test each device
-    for (const dev of devIds) {
-      try {
-        const url = FEAT_BASE + '?installationId=' + installId + '&gatewaySerial=' + gwSerial + '&deviceId=' + dev + '&combined=false';
-        const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
-        if (r.ok) {
-          const data = await r.json();
-          const feats = data.data || [];
-          const heating = feats.filter(f=>f.feature?.startsWith('heating')).length;
-          log('✓ /devices/' + dev + '/features → ' + feats.length + ' features, ' + heating + ' heating');
-          if (feats.length > 0) log('  Erste: ' + feats.slice(0,3).map(f=>f.feature).join(', '));
-        } else {
-          log('✗ /devices/' + dev + '/features → ' + r.status);
-        }
-      } catch(e) { log('✗ /devices/' + dev + ' → ' + e.message); }
-    }
-    log('');
+      const url = NEWBASE + '?installationId=' + installId + '&gatewaySerial=' + gwSerial + '&deviceId=' + dev;
+      const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
+      const txt = await r.text();
+      if (r.ok) {
+        const data = JSON.parse(txt);
+        const feats = data.data || data.features || [];
+        const heating = feats.filter(f=>f.feature?.startsWith('heating')).length;
+        log('✓ deviceId=' + dev + ' → ' + feats.length + ' features, ' + heating + ' heating');
+        if (feats.length > 0) log('  Erste: ' + feats.slice(0,5).map(f=>f.feature).join(', '));
+      } else {
+        log('✗ deviceId=' + dev + ' → ' + r.status + ' ' + txt.substring(0,120));
+      }
+    } catch(e) { log('✗ deviceId=' + dev + ' → ' + e.message); }
   }
+  log('');
+
+  // Also try without deviceId
+  log('── Ohne deviceId ──');
+  try {
+    const url = NEWBASE + '?installationId=' + installId + '&gatewaySerial=' + gwSerial;
+    const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
+    const txt = await r.text();
+    if (r.ok) {
+      const data = JSON.parse(txt);
+      const feats = data.data || data.features || [];
+      const heating = feats.filter(f=>f.feature?.startsWith('heating')).length;
+      log('✓ ohne deviceId → ' + feats.length + ' features, ' + heating + ' heating');
+      if (feats.length > 0) log('  Erste: ' + feats.slice(0,5).map(f=>f.feature).join(', '));
+    } else {
+      log('✗ ohne deviceId → ' + r.status + ' ' + txt.substring(0,200));
+    }
+  } catch(e) { log('✗ ohne deviceId → ' + e.message); }
+
+  // Try combined=true
+  log('');
+  log('── combined=true ──');
+  try {
+    const url = NEWBASE + '?installationId=' + installId + '&gatewaySerial=' + gwSerial + '&combined=true';
+    const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
+    const txt = await r.text();
+    if (r.ok) {
+      const data = JSON.parse(txt);
+      const feats = data.data || data.features || [];
+      log('✓ combined=true → ' + feats.length + ' features');
+      if (feats.length > 0) log('  Erste: ' + feats.slice(0,5).map(f=>f.feature).join(', '));
+    } else {
+      log('✗ combined=true → ' + r.status + ' ' + txt.substring(0,200));
+    }
+  } catch(e) { log('✗ combined=true → ' + e.message); }
+
+  log('');
   log('Fertig.');
 }
 
