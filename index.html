@@ -864,8 +864,8 @@ async function loadInstall() {
 }
 
 async function getFeatures() {
-  // New ViCare API endpoint (replaces deprecated /devices/{id}/features)
-  const url = `${FEAT_BASE}?installationId=${installId}&gatewaySerial=${gwSerial}&deviceId=${deviceId}&combined=false`;
+  // ViCare API v2 — correct URL structure
+  const url = `${API_BASE}/features/installations/${installId}/gateways/${gwSerial}/devices/0/features`;
   const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
   if (!r.ok) {
     const err = await r.json().catch(()=>({}));
