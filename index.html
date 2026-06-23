@@ -898,11 +898,11 @@ async function update() {
     const burnerSt  = feat(fs, 'heating.burners.0.statistics');
     const burnerMod = feat(fs, 'heating.burners.0.modulation');
     // fallback older feature name
-    const burner_   = feat(fs, 'heating.burner') || burner;
-    const burnerSt_ = feat(fs, 'heating.burner.statistics') || burnerSt;
-    const burnerMod_= feat(fs, 'heating.burner.modulation') || burnerMod;
+    const burner_   = burner;
+    const burnerSt_ = burnerSt;
+    const burnerMod_= burnerMod;
 
-    const active  = prop(burner_, 'active') ?? prop(burner_, 'status') === 'on';
+    const active  = prop(burner_, 'active') ?? (prop(burner_, 'status') === 'on');
     const modV    = prop(burnerMod_, 'value');
     const hours   = prop(burnerSt_, 'hours');
     const starts  = prop(burnerSt_, 'starts');
@@ -980,7 +980,7 @@ async function update() {
     }
 
     // ── DHW ──
-    const dhwModeF   = feat(fs,'heating.dhw.operating.modes.active');
+    const dhwModeF   = feat(fs,'heating.circuits.0.operating.modes.active');
     const dhwPumpF   = feat(fs,'heating.dhw.pumps.circulation');
     const dhwTargetF = feat(fs,'heating.dhw.temperature.main') || feat(fs,'heating.dhw.temperature');
 
@@ -1025,7 +1025,7 @@ async function update() {
     setText('t-room-desired', hcDesired !== null ? hcDesired.toFixed(1)+'°' : '–');
 
     // ── Service ──
-    const svcF = feat(fs,'heating.service.timeBased') || feat(fs,'heating.service');
+    const svcF = feat(fs,'heating.service.timeBased');
     if (svcF?.properties) {
       const last    = prop(svcF,'lastService');
       const next    = prop(svcF,'nextService');
@@ -1248,8 +1248,7 @@ async function diagRun() {
 
   log('');
   log('');
-    log('');
-  log('── Alle Features ──');
+  log('── Alle 107 Feature-Namen ──');
   try {
     const url = API_BASE + `/features/installations/${installId}/gateways/${gwSerial}/devices/0/features`;
     const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
