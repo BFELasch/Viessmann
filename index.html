@@ -1248,16 +1248,33 @@ async function diagRun() {
 
   log('');
   log('');
-  log('── Alle 107 Feature-Namen ──');
+    log('── Solar & Burner Properties ──');
   try {
     const url = API_BASE + `/features/installations/${installId}/gateways/${gwSerial}/devices/0/features`;
     const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
     const data = await r.json();
     const feats = data.data || [];
-    feats.forEach(f => log(f.feature));
+    const targets = [
+      'heating.solar.power.production',
+      'heating.solar.power.cumulativeProduced',
+      'heating.solar.pumps.circuit',
+      'heating.solar.sensors.temperature.collector',
+      'heating.solar.sensors.temperature.dhw',
+      'heating.burners.0.statistics',
+      'heating.burners.0.modulation',
+    ];
+    targets.forEach(name => {
+      const f = feats.find(x => x.feature === name);
+      if (!f) { log('✗ ' + name); return; }
+      log('✓ ' + name);
+      Object.entries(f.properties||{}).forEach(([k,v]) => {
+        log('  ' + k + ': ' + JSON.stringify(v).substring(0,120));
+      });
+    });
   } catch(e) { log('Fehler: ' + e.message); }
   log('Fertig.');
 }
+
 
 
 async function init() {
