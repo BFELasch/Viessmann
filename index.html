@@ -1046,16 +1046,31 @@ async function update() {
       setText('efficiency-val', eff.toFixed(0) + '%');
     }
 
-    // ── Burner starts today (day[0] from statistics if available) ──
-    const burnerStToday = feat(fs,'heating.burners.0.statistics')?.properties?.['starts_this_day']?.value
-      ?? feat(fs,'heating.burner.statistics')?.properties?.['starts_this_day']?.value;
-    if (burnerStToday !== undefined) {
-      setText('burner-starts-today', burnerStToday);
-      setText('starts-today-chip', burnerStToday);
-    } else {
-      setText('burner-starts-today', '–');
-      setText('starts-today-chip', '–');
-    }
+    // ── Burner starts today ──
+    const burnerStToday = feat(fs,'heating.burners.0.statistics')?.properties?.['starts_this_day']?.value;
+    setText('burner-starts-today', burnerStToday ?? '–');
+    setText('starts-today-chip',   burnerStToday ?? '–');
+
+    // ── Solar ──
+    const solarProd  = feat(fs, 'heating.solar.power.production');
+    const solarCumul = feat(fs, 'heating.solar.power.cumulativeProduced');
+    const solarPump  = feat(fs, 'heating.solar.pumps.circuit');
+    const solarTcoll = feat(fs, 'heating.solar.sensors.temperature.collector');
+    const solarTdhw  = feat(fs, 'heating.solar.sensors.temperature.dhw');
+
+    const solarNow   = solarProd?.properties?.value?.value ?? null;
+    const solarTotal = solarCumul?.properties?.value?.value ?? null;
+    const solarPumpV = solarPump?.properties?.status?.value ?? null;
+    const solarTcollV= solarTcoll?.properties?.value?.value ?? null;
+    const solarTdhwV = solarTdhw?.properties?.value?.value  ?? null;
+
+    // Solar card
+    const solarEl = document.getElementById('solar-now');
+    if (solarEl) solarEl.innerHTML = (solarNow !== null ? solarNow.toFixed(2) : '0.00') + '<span class="unit">kW</span>';
+    setText('solar-today', solarTotal !== null ? (solarTotal/1000).toFixed(1) + ' kWh' : '–');
+    setText('solar-month', solarPumpV !== null ? (solarPumpV === 'on' ? '🟢 Aktiv' : '⚫ Aus') : '–');
+    setText('solar-feed',  solarTcollV !== null ? solarTcollV.toFixed(1) + ' °C Koll.' : (solarTdhwV !== null ? solarTdhwV.toFixed(1) + ' °C WW' : '–'));
+    setText('fl-solar',    solarNow !== null ? solarNow.toFixed(2) + ' kW' : '0.00 kW');
 
   } catch(e) {
     console.error('Update:', e);
