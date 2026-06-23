@@ -903,9 +903,9 @@ async function update() {
     const burnerMod_= burnerMod;
 
     const active  = prop(burner_, 'active') ?? (prop(burner_, 'status') === 'on');
-    const modV    = prop(burnerMod_, 'value');
-    const hours   = prop(burnerSt_, 'hours');
-    const starts  = prop(burnerSt_, 'starts');
+    const modV    = burnerMod_?.properties?.value?.value ?? null;
+    const hours   = burnerSt_?.properties?.hours?.value ?? null;
+    const starts  = burnerSt_?.properties?.starts?.value ?? null;
 
     setText('burner-val',         active ? 'AN' : 'AUS');
     document.getElementById('burner-val').style.color = active ? 'var(--heat)' : 'var(--muted)';
@@ -1248,33 +1248,16 @@ async function diagRun() {
 
   log('');
   log('');
-    log('── Solar & Burner Properties ──');
+  log('── Alle 107 Feature-Namen ──');
   try {
     const url = API_BASE + `/features/installations/${installId}/gateways/${gwSerial}/devices/0/features`;
     const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
     const data = await r.json();
     const feats = data.data || [];
-    const targets = [
-      'heating.solar.power.production',
-      'heating.solar.power.cumulativeProduced',
-      'heating.solar.pumps.circuit',
-      'heating.solar.sensors.temperature.collector',
-      'heating.solar.sensors.temperature.dhw',
-      'heating.burners.0.statistics',
-      'heating.burners.0.modulation',
-    ];
-    targets.forEach(name => {
-      const f = feats.find(x => x.feature === name);
-      if (!f) { log('✗ ' + name); return; }
-      log('✓ ' + name);
-      Object.entries(f.properties||{}).forEach(([k,v]) => {
-        log('  ' + k + ': ' + JSON.stringify(v).substring(0,120));
-      });
-    });
+    feats.forEach(f => log(f.feature));
   } catch(e) { log('Fehler: ' + e.message); }
   log('Fertig.');
 }
-
 
 
 async function init() {
