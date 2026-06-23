@@ -1248,22 +1248,14 @@ async function diagRun() {
 
   log('');
   log('');
-  log('── Gas Features ──');
+    log('');
+  log('── Alle Features ──');
   try {
     const url = API_BASE + `/features/installations/${installId}/gateways/${gwSerial}/devices/0/features`;
     const r = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken }});
     const data = await r.json();
     const feats = data.data || [];
-    const gasFeats = feats.filter(f => f.feature?.toLowerCase().includes('gas') || f.feature?.toLowerCase().includes('consumption'));
-    if (gasFeats.length === 0) { log('Keine Gas/Consumption Features gefunden!'); }
-    gasFeats.forEach(f => {
-      log('► ' + f.feature);
-      if (f.properties) {
-        Object.entries(f.properties).forEach(([k,v]) => {
-          log('  ' + k + ': ' + JSON.stringify(v).substring(0,80));
-        });
-      }
-    });
+    feats.forEach(f => log(f.feature));
   } catch(e) { log('Fehler: ' + e.message); }
   log('Fertig.');
 }
